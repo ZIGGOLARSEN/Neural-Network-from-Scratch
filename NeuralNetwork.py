@@ -5,20 +5,22 @@ from activation_functions import *
 from Layer import Layer
 
 class NeuralNetwork:
-    def __init__(self, network: list[Layer], data, y, learn_rate, batch_size, loss = CategoricalCrossEntropyWithSoftmax.loss):
+    def __init__(self, network: list[Layer], data, y, learn_rate, batch_size, reg_type = 'l2', lmbda=0, loss = CategoricalCrossEntropyWithSoftmax.loss):
         self.network = network
         self.data = data
         self.y = y
         self.batch_size = batch_size
-        self.loss = loss
         self.learn_rate = learn_rate
+        self.reg_type = reg_type
+        self.lmbda = lmbda
+        self.loss = loss
 
         self.batches, self.labels = self.divide_data(self.data, self.y)
 
 
     def divide_data(self, data, y):
         # case where data has less instances than given batch size for network
-        if len(self.data.T) < self.batch_size:
+        if len(self.data.T) <= self.batch_size:
             batches = [data]
             labels = [y]
             return
@@ -62,10 +64,6 @@ class NeuralNetwork:
 
         return output
 
-    def batch_cost(self, batch, label):
-        output = self.feed_forward(batch)
-        return np.mean(self.loss(output, label))
-
     def cost(self):
         # we iterate through zip of networks outputs and target labels
         # and pass them into the loss function one batch at a time. 
@@ -85,11 +83,19 @@ class NeuralNetwork:
             delta_l = delta_L * derivative_of_activation
 
         # derivatives for gradient
-        dweights = delta_l@layer.a.T
-        dbiases = delta_l
+        # self.lmbda parameter controls l1 or l2 regularization 
+        # if set to zero network is unregularized
 
-        # updating weights and biases
-        layer.W -= self.learn_rate/len(layer.z.T) * dweights
+        if self.reg_type == 'l1':
+            w_sgn = np.sign(layer.W)
+
+            dweights = delta_l@layer.a.T + self.lmbda*w_sgn/len(layer.z.T)
+            layer.W -= self.learn_rate/len(layer.z.T) * dweights - self.learn_rate * self.lmbda * w_sgn / len(self.data.T)
+        else:
+            dweights = delta_l@layer.a.T + self.lmbda*layer.W/len(layer.z.T)
+            layer.W -= self.learn_rate/len(layer.z.T) * dweights - self.learn_rate * self.lmbda * layer.W / len(self.data.T)
+
+        dbiases = delta_l
         layer.b -= self.learn_rate/len(layer.z.T) * dbiases
 
         # returning layer's error to do same operations on previous
@@ -108,10 +114,22 @@ class NeuralNetwork:
         # then propagate backwards and update weights and biases along the way
         # we do this for each epoch
 
-        for _ in range(epochs):
+        for epoch in range(epochs):
+            batch_accuracies = []
             for batch, label in zip(self.batches, self.labels):
-                self.feed_forward(batch)
+                output = self.feed_forward(batch)
+                
+                # we calculate batch accuracy and append it to array of batch accuracies 
+                # to use them later for determinig accuracy on each epoch 
+                prediction = np.argmax(output, axis=0)
+                accuracy = self.accuracy(prediction, label)
+                batch_accuracies.append(accuracy)
+
                 self.backprop(label)
+
+            # printing training data accuracies
+            print(f'Epoch {epoch+1}: accuracy -> {np.mean(batch_accuracies):.6f}')
+            batch_accuracies = []
 
     def predict(self, test_data, test_labels):
         predictions = []
@@ -124,10 +142,15 @@ class NeuralNetwork:
         for batch, label in zip(*self.divide_data(test_data, test_labels)):
             output = self.feed_forward(batch)
             
+            # networks prediction is the index a which
+            # there is a highest output probability 
             prediction = np.argmax(output, axis=0)
             predictions.append(prediction)
 
-            accuracy = np.sum(label[prediction, range(len(label.T))] ) / len(label.T)
-            accuracies.append(accuracy)
+            accuracies.append(self.accuracy(prediction, label))
         
-        return predictions, np.mean(accuracies) * 100
+        return predictions, np.round(np.mean(accuracies), 6)
+
+    def accuracy(self, prediction, label):
+        accuracy = np.sum(label[prediction, range(len(label.T))] ) / len(label.T)
+        return accuracy

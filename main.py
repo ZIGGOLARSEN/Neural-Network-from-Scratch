@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
@@ -29,7 +30,16 @@ neural_net = NeuralNetwork([
     Layer(784, 100, batch_size, Sigmoid),
     Layer(100, 10, batch_size, CategoricalCrossEntropyWithSoftmax)
 ], 
-train_data, train_labels, 0.5, batch_size=batch_size)
+train_data, train_labels, 0.5, reg_type='l2', batch_size=batch_size, lmbda=5)
+
+start = time.perf_counter()
+
+print(' =================== start ====================')
 
 neural_net.learn(15)
-print(neural_net.predict(test_data, test_labels)[1])
+
+print(f'time taken to learn: {time.perf_counter() - start}')
+
+print(f'test accuracy: {neural_net.predict(test_data, test_labels)[1]}')
+
+print(' ================== end ==================')
