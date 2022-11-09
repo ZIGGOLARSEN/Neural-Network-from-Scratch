@@ -3,7 +3,7 @@ import numpy as np
 from activation_functions import *
 
 class Layer:
-    def __init__(self, num_neurons_this_layer, num_neurons_next_layer, input_size, activation_function = ReLU):
+    def __init__(self, num_neurons_this_layer, num_neurons_next_layer, input_size, activation_function):
         self.num_neurons_this_layer = num_neurons_this_layer
         self.num_neurons_next_layer = num_neurons_next_layer
         self.input_size = input_size
@@ -21,7 +21,7 @@ class Layer:
         n = self.num_neurons_this_layer
         k = self.num_neurons_next_layer
 
-        self.W = np.random.rand(k, n)
+        self.W = np.random.randn(k, n) / np.sqrt(n)
         self.b = np.zeros((k, self.input_size))
 
     def calculate_output(self, input):

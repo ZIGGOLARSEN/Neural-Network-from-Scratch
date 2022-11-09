@@ -91,9 +91,12 @@ class NeuralNetwork:
 
             dweights = delta_l@layer.a.T + self.lmbda*w_sgn/len(layer.z.T)
             layer.W -= self.learn_rate/len(layer.z.T) * dweights - self.learn_rate * self.lmbda * w_sgn / len(self.data.T)
-        else:
+        elif self.lmbda != 0:
             dweights = delta_l@layer.a.T + self.lmbda*layer.W/len(layer.z.T)
             layer.W -= self.learn_rate/len(layer.z.T) * dweights - self.learn_rate * self.lmbda * layer.W / len(self.data.T)
+        else:
+            dweights = delta_l@layer.a.T
+            layer.W -= self.learn_rate/len(layer.z.T) * dweights
 
         dbiases = delta_l
         layer.b -= self.learn_rate/len(layer.z.T) * dbiases
