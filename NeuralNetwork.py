@@ -51,6 +51,7 @@ class NeuralNetwork:
 
         return batches, labels
 
+
     def feed_forward(self, batch):
         # we feed all instances into one particular batch to the network
         # and then we get the corresponding output
@@ -63,15 +64,6 @@ class NeuralNetwork:
             input = output
 
         return output
-
-    def cost(self):
-        # we iterate through zip of networks outputs and target labels
-        # and pass them into the loss function one batch at a time. 
-        # then we compute average cost of each batch
-
-        cost = np.mean([self.loss(output, label) for output, label in zip(self.outputs, self.labels)])
-
-        return cost
 
     def backprop(self, label):
         # calculating output error to propagate it
@@ -89,9 +81,12 @@ class NeuralNetwork:
 
         for epoch in range(epochs):
             batch_accuracies = []
+            batch_costs = []
+           
             for batch, label in zip(self.batches, self.labels):
                 output = self.feed_forward(batch)
-                
+                batch_costs.append(self.batch_cost(output, label))
+
                 # we calculate batch accuracy and append it to array of batch accuracies 
                 # to use them later for determinig accuracy on each epoch 
                 prediction = np.argmax(output, axis=0)
@@ -99,10 +94,23 @@ class NeuralNetwork:
                 batch_accuracies.append(accuracy)
 
                 self.backprop(label)
-
-            # printing training data accuracies
-            print(f'Epoch {epoch+1}: accuracy -> {np.mean(batch_accuracies):.6f}')
+            
+            epoch_cost = self.cost(batch_costs)
+            
+            # printing training data costs and accuracies for each epoch
+            print(f'Epoch {epoch+1}: loss -> {epoch_cost:.6f};  accuracy -> {np.mean(batch_accuracies):.6f}')
+            
             batch_accuracies = []
+            batch_costs = []
+    
+
+    def batch_cost(self, output, label):
+        cost = np.mean(self.loss(output, label))
+        return cost
+
+    def cost(self, batch_costs):
+        return np.mean(batch_costs)
+
 
     def predict(self, test_data, test_labels):
         predictions = []
