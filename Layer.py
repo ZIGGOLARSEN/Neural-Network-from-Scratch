@@ -42,13 +42,18 @@ class Layer:
 
         return self.output
 
-
-    def backward(self, delta_l, learn_rate, reg_type, lmbda):
-        # output error and hidden layer errors are different 
-        # thats why we need to handle them separately
-
+    def error(self, delta_l):
         derivative_of_activation = self.activation_function.derivative(self.z)
         delta_l = delta_l * derivative_of_activation
+
+        return delta_l        
+
+    def backward(self, label_or_error, learn_rate, reg_type, lmbda):
+        # output error and hidden layer errors are different, thats why we have parameter 
+        # label_or_error: if the layer is output layer label_or_error is label
+        # otherwise its error returned from previous layer
+
+        delta_l = self.error(label_or_error)
 
         # derivatives for gradient
         # lmbda parameter controls l1 or l2 regularization 
@@ -58,60 +63,28 @@ class Layer:
             w_sgn = np.sign(self.W)
 
             dweights = delta_l@self.a.T + lmbda*w_sgn
-
-            self.W -= learn_rate/len(self.z.T) * dweights - learn_rate * lmbda * w_sgn
+            self.W -= learn_rate/len(self.z.T)*dweights - learn_rate * lmbda * w_sgn
 
         elif lmbda != 0:
             dweights = delta_l@self.a.T + lmbda*self.W
-
-            self.W -= learn_rate/len(self.z.T) * dweights - learn_rate * lmbda * self.W
+            self.W -= learn_rate/len(self.z.T)*dweights - learn_rate * lmbda * self.W
 
         else:
             dweights = delta_l@self.a.T
-
-            self.W -= learn_rate/len(self.z.T) * dweights
+            self.W -= learn_rate/len(self.z.T)*dweights
 
         dbiases = delta_l
-        self.b -= learn_rate/len(self.z.T) * dbiases
-
+        self.b -= learn_rate/len(self.z.T)*dbiases
+        
         # returning self's error to do same operations on previous
         # selfs as we did here
         return self.W.T@delta_l
+
 
 class Output(Layer):
     def __init__(self, num_neurons_this_layer, num_neurons_next_layer, input_size, activation_function):
         super().__init__(num_neurons_this_layer, num_neurons_next_layer, input_size, activation_function)
 
-    def backward(self, label, learn_rate, reg_type, lmbda):
-        # output error and hidden layer errors are different 
-        # thats why we need to handle them separately
-
+    def error(self, label):        
         delta_l = self.activation_function.derivative(self.output, label)
-
-        # derivatives for gradient
-        # lmbda parameter controls l1 or l2 regularization 
-        # if set to zero network is unregularized
-
-        if reg_type == 'l1':
-            w_sgn = np.sign(self.W)
-
-            dweights = delta_l@self.a.T + lmbda*w_sgn
-
-            self.W -= learn_rate/len(self.z.T) * dweights - learn_rate * lmbda * w_sgn
-        
-        elif lmbda != 0:
-            dweights = delta_l@self.a.T + lmbda*self.W
-
-            self.W -= learn_rate/len(self.z.T) * dweights - learn_rate * lmbda * self.W
-        
-        else:
-            dweights = delta_l@self.a.T
-
-            self.W -= learn_rate/len(self.z.T) * dweights
-
-        dbiases = delta_l
-        self.b -= learn_rate/len(self.z.T) * dbiases
-
-        # returning self's error to do same operations on previous
-        # selfs as we did here
-        return self.W.T@delta_l
+        return delta_l
