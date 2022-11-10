@@ -12,7 +12,7 @@ class NeuralNetwork:
         self.batch_size = batch_size
         self.learn_rate = learn_rate
         self.reg_type = reg_type
-        self.lmbda = lmbda
+        self.lmbda = lmbda / len(self.data.T)
         self.loss = loss
 
         self.batches, self.labels = self.divide_data(self.data, self.y)
@@ -59,7 +59,7 @@ class NeuralNetwork:
 
         # feeding one batch to the network
         for layer in self.network:
-            output = layer.calculate_output(input)
+            output = layer.forward(input)
             input = output
 
         return output
@@ -73,44 +73,14 @@ class NeuralNetwork:
 
         return cost
 
-    def update_gradients(self, layer: Layer, layer_type, label=None, delta_L=None):
-        # output error and hidden layer errors are different 
-        # thats why we need to handle them separately
-        if layer_type == 'output':
-            delta_l = layer.activation_function.derivative(layer.output, label)
-        else:
-            derivative_of_activation = layer.activation_function.derivative(layer.z)
-            delta_l = delta_L * derivative_of_activation
-
-        # derivatives for gradient
-        # self.lmbda parameter controls l1 or l2 regularization 
-        # if set to zero network is unregularized
-
-        if self.reg_type == 'l1':
-            w_sgn = np.sign(layer.W)
-
-            dweights = delta_l@layer.a.T + self.lmbda*w_sgn/len(layer.z.T)
-            layer.W -= self.learn_rate/len(layer.z.T) * dweights - self.learn_rate * self.lmbda * w_sgn / len(self.data.T)
-        elif self.lmbda != 0:
-            dweights = delta_l@layer.a.T + self.lmbda*layer.W/len(layer.z.T)
-            layer.W -= self.learn_rate/len(layer.z.T) * dweights - self.learn_rate * self.lmbda * layer.W / len(self.data.T)
-        else:
-            dweights = delta_l@layer.a.T
-            layer.W -= self.learn_rate/len(layer.z.T) * dweights
-
-        dbiases = delta_l
-        layer.b -= self.learn_rate/len(layer.z.T) * dbiases
-
-        # returning layer's error to do same operations on previous
-        # layers as we did here
-        return layer.W.T@delta_l
-
     def backprop(self, label):
-        output_error = self.update_gradients(self.network[-1], 'output', label)
+        # calculating output error to propagate it
+        # backwards and update gradient
+        output_error = self.network[-1].backward(label, self.learn_rate, self.reg_type, self.lmbda)
 
         # iterating through hidden layers and updating gradients
         for layer in self.network[-2::-1]:
-            output_error = self.update_gradients(layer, 'hidden', delta_L = output_error)
+            output_error = layer.backward(output_error, self.learn_rate, self.reg_type, self.lmbda)
 
     def learn(self, epochs):
         # for each batch in the data we feed forwrd the batch into the network
